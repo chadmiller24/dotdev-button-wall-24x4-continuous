@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DotDev 2026 — Button Wall (24' × 4', continuous)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #031E1D;
+    --ink: #D3D3D3;
+    --accent: #F5572D;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'IBM Plex Mono', monospace;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  header {
+    padding: 18px 24px 10px;
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  header h1 {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--ink);
+  }
+  header .meta {
+    font-size: 11px;
+    font-weight: 400;
+    letter-spacing: 1px;
+    color: #5f7a78;
+    text-transform: uppercase;
+  }
+
+  #stage {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 24px;
+    min-height: 0;
+  }
+  canvas { display: block; cursor: crosshair; touch-action: none; }
+
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 24px 22px;
+    flex-wrap: wrap;
+  }
+  .controls .group {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  button.mode, button.act {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--ink);
+    background: transparent;
+    border: 1px solid #1d3a38;
+    border-radius: 100px;
+    padding: 9px 16px;
+    cursor: pointer;
+    transition: background .25s, color .25s, border-color .25s;
+  }
+  button.mode:hover, button.act:hover { border-color: #2f5654; }
+  button.mode.on {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #031E1D;
+  }
+  .swatches { display: flex; gap: 6px; margin-left: 4px; }
+  .sw {
+    width: 22px; height: 22px; border-radius: 50%;
+    border: 2px solid transparent; cursor: pointer; padding: 0;
+    transition: transform .15s, border-color .15s;
+  }
+  .sw:hover { transform: scale(1.12); }
+  .sw.on { border-color: var(--ink); }
+  #ticker-input {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--ink); background: #06302e;
+    border: 1px solid #1d3a38; border-radius: 100px;
+    padding: 9px 14px; width: 230px; outline: none;
+  }
+  #ticker-input:focus { border-color: var(--accent); }
+  .hint { font-size: 11px; color: #5f7a78; letter-spacing: .5px; margin-left: auto; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>DotDev 2026 · Button Wall</h1>
+    <span class="meta">24&prime; × 4&prime; continuous · 2&Prime; on-center · 129 × 19 = 2,451 buttons</span>
+  </header>
+
+  <div id="stage">
+    <canvas id="wall"></canvas>
+  </div>
+
+  <div class="controls">
+    <div class="group">
+      <button class="mode on" data-mode="ambient">Ambient</button>
+      <button class="mode" data-mode="paint">Paint</button>
+      <button class="mode" data-mode="ticker">Ticker</button>
+    </div>
+
+    <div class="group swatches" id="swatches"></div>
+    <input id="ticker-input" class="hidden" type="text" maxlength="48" value="DOTDEV 2026 · PRESS A BUTTON" />
+    <button class="act" id="clear">Clear</button>
+    <span class="hint">Move / drag across the wall to light it up</span>
+  </div>
+
+<script>
+const COLS = 129, ROWS = 19;
+const PALETTE = ['#F5572D','#FFBE0B','#3DDC97','#3A86FF','#FF5DA2','#9B5DE5','#00F5D4'];
+
+const cv = document.getElementById('wall');
+const ctx = cv.getContext('2d');
+
+let cell, rad, gap, originX, originY, dpr = 1;
+// per-button persistent painted color (hex) or null; and live "energy" 0..1
+const painted = new Array(COLS*ROWS).fill(null);
+const energy  = new Float32Array(COLS*ROWS);
+const energyColor = new Array(COLS*ROWS).fill(null);
+
+let mode = 'ambient';
+let brush = PALETTE[0];
+let pointer = { x: -999, y: -999, down: false };
+let t0 = performance.now();
+
+function layout(){
+  const stage = document.getElementById('stage');
+  const availW = stage.clientWidth;
+  const availH = stage.clientHeight;
+  // wall aspect = COLS:ROWS
+  let w = availW, h = w * ROWS / COLS;
+  if (h > availH) { h = availH; w = h * COLS / ROWS; }
+  cell = w / COLS;
+  rad = cell * 0.40;
+  gap = cell;
+  originX = (w - (COLS-1)*gap) / 2;
+  originY = (h - (ROWS-1)*gap) / 2;
+
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  cv.style.width = w + 'px';
+  cv.style.height = h + 'px';
+  cv.width  = Math.round(w * dpr);
+  cv.height = Math.round(h * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener('resize', layout);
+
+function bx(c){ return originX + c * gap; }
+function by(r){ return originY + r * gap; }
+
+function hexToRgb(h){
+  const n = parseInt(h.slice(1),16);
+  return [(n>>16)&255,(n>>8)&255,n&255];
+}
+function mix(a, b, t){
+  return [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t];
+}
+const BASE = hexToRgb('#0a2b29');   // unlit button face
+const palRgb = PALETTE.map(hexToRgb);
+
+// ---- ticker: render text to an offscreen grid and sample it ----
+const off = document.createElement('canvas');
+const offctx = off.getContext('2d');
+let tickerText = 'DOTDEV 2026 · PRESS A BUTTON';
+let tickerW = 0;
+function buildTicker(){
+  offctx.font = `bold ${ROWS}px 'IBM Plex Mono', monospace`;
+  const m = offctx.measureText(tickerText);
+  tickerW = Math.ceil(m.width) + COLS; // pad with a screen of blank for smooth wrap
+  off.width = tickerW;
+  off.height = ROWS;
+  offctx.clearRect(0,0,off.width,off.height);
+  offctx.font = `bold ${ROWS}px 'IBM Plex Mono', monospace`;
+  offctx.textBaseline = 'middle';
+  offctx.fillStyle = '#fff';
+  offctx.fillText(tickerText, COLS, ROWS/2 + 1);
+}
+function tickerLit(c, r, scroll){
+  const x = Math.floor(c + scroll) % tickerW;
+  const xx = (x + tickerW) % tickerW;
+  const px = offctx.getImageData(xx, r, 1, 1).data;
+  return px[3] > 100;
+}
+
+function draw(now){
+  const t = (now - t0) / 1000;
+  ctx.clearRect(0,0,cv.width,cv.height);
+
+  // ambient field
+  const scroll = -t * 26; // ticker speed (cols/sec)
+  for (let r=0; r<ROWS; r++){
+    for (let c=0; c<COLS; c++){
+      const i = r*COLS + c;
+      let rgb, lit = 0;
+
+      // base ambient wave (drifting color field)
+      const wave = 0.5 + 0.5*Math.sin(c*0.18 + t*1.1) * Math.cos(r*0.30 - t*0.7);
+      const hueShift = (Math.sin(c*0.05 + t*0.4) + 1) / 2;
+      const ambIdx = Math.floor(hueShift * palRgb.length) % palRgb.length;
+      let amb = mix(BASE, palRgb[ambIdx], 0.10 + 0.22*wave);
+
+      if (mode === 'ambient'){
+        rgb = amb;
+      } else if (mode === 'ticker'){
+        rgb = tickerLit(c, r, scroll) ? palRgb[0].slice() : mix(BASE, palRgb[3], 0.06);
+      } else { // paint
+        rgb = painted[i] ? hexToRgb(painted[i]) : BASE.slice();
+      }
+
+      // live energy from pointer / paint glow
+      if (energy[i] > 0.001){
+        const ec = energyColor[i] || palRgb[0];
+        rgb = mix(rgb, ec, Math.min(1, energy[i]));
+        // light-bloom: also nudge toward white at the peak
+        rgb = mix(rgb, [255,255,255], energy[i]*0.25);
+        energy[i] *= 0.90; // decay
+      }
+
+      const x = bx(c), y = by(r);
+      ctx.beginPath();
+      ctx.arc(x, y, rad, 0, Math.PI*2);
+      ctx.fillStyle = `rgb(${rgb[0]|0},${rgb[1]|0},${rgb[2]|0})`;
+      ctx.fill();
+    }
+  }
+
+  // pointer ripple — light buttons under/near the cursor
+  if (pointer.x > -500){
+    const cc = (pointer.x - originX) / gap;
+    const rr = (pointer.y - originY) / gap;
+    const reach = 2.6;
+    const c0 = Math.max(0, Math.floor(cc-reach)), c1 = Math.min(COLS-1, Math.ceil(cc+reach));
+    const r0 = Math.max(0, Math.floor(rr-reach)), r1 = Math.min(ROWS-1, Math.ceil(rr+reach));
+    for (let r=r0; r<=r1; r++){
+      for (let c=c0; c<=c1; c++){
+        const d = Math.hypot(c-cc, r-rr);
+        if (d <= reach){
+          const i = r*COLS + c;
+          const add = (1 - d/reach);
+          if (add > energy[i]){ energy[i] = Math.min(1, add); energyColor[i] = hexToRgb(brush); }
+          if (mode === 'paint' && pointer.down && d < 1.4){
+            painted[i] = brush;
+          }
+        }
+      }
+    }
+  }
+
+  requestAnimationFrame(draw);
+}
+
+// ---- pointer handling ----
+function setPointer(e){
+  const rect = cv.getBoundingClientRect();
+  const p = (e.touches && e.touches[0]) || e;
+  pointer.x = p.clientX - rect.left;
+  pointer.y = p.clientY - rect.top;
+}
+cv.addEventListener('pointermove', setPointer);
+cv.addEventListener('pointerdown', e => { pointer.down = true; setPointer(e); });
+window.addEventListener('pointerup', () => { pointer.down = false; });
+cv.addEventListener('pointerleave', () => { pointer.x = -999; pointer.y = -999; });
+
+// ---- controls ----
+const swWrap = document.getElementById('swatches');
+PALETTE.forEach((hex, idx) => {
+  const b = document.createElement('button');
+  b.className = 'sw' + (idx===0 ? ' on' : '');
+  b.style.background = hex;
+  b.title = hex;
+  b.addEventListener('click', () => {
+    brush = hex;
+    [...swWrap.children].forEach(s => s.classList.remove('on'));
+    b.classList.add('on');
+  });
+  swWrap.appendChild(b);
+});
+
+const tickerInput = document.getElementById('ticker-input');
+document.querySelectorAll('button.mode').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('button.mode').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+    mode = btn.dataset.mode;
+    tickerInput.classList.toggle('hidden', mode !== 'ticker');
+  });
+});
+tickerInput.addEventListener('input', () => {
+  tickerText = (tickerInput.value || ' ').toUpperCase();
+  buildTicker();
+});
+
+document.getElementById('clear').addEventListener('click', () => {
+  painted.fill(null);
+  energy.fill(0);
+});
+
+// ---- boot ----
+function start(){
+  layout();
+  buildTicker();
+  requestAnimationFrame(draw);
+}
+// wait for the mono font so ticker metrics are right
+if (document.fonts && document.fonts.ready){
+  document.fonts.ready.then(() => { buildTicker(); });
+}
+start();
+</script>
+</body>
+</html>
