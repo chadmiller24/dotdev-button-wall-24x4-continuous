@@ -1,337 +1,267 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DotDev 2026 — Button Wall (24' × 4', continuous)</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --bg: #031E1D;
-    --ink: #D3D3D3;
-    --accent: #F5572D;
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DotDev Button Wall — 24′×4′ continuous grid</title>
+  <meta name="description" content="3D mockup of a 24′×4′ DotDev LED button wall: 3 abutted 8′ panels behind one continuous 2″ on-centre field, 134×19 = 2,546 buttons.">
+  <meta name="keywords" content="dotdev, button-wall, led-wall, 3d-mockup, three-js">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter+Tight:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <script nonce="f01b3c9c346ca250c8f5d72decf1d541" type="importmap">
+  {
+    "imports": {
+      "three": "/vendor/three.module.js",
+      "three/addons/": "/vendor/jsm/"
+    }
   }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { height: 100%; }
-  body {
-    background: var(--bg);
-    color: var(--ink);
-    font-family: 'IBM Plex Mono', monospace;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-  }
-
-  header {
-    padding: 18px 24px 10px;
-    display: flex;
-    align-items: baseline;
-    gap: 16px;
-    flex-wrap: wrap;
-  }
-  header h1 {
-    font-size: 13px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    color: var(--ink);
-  }
-  header .meta {
-    font-size: 11px;
-    font-weight: 400;
-    letter-spacing: 1px;
-    color: #5f7a78;
-    text-transform: uppercase;
-  }
-
-  #stage {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0 24px;
-    min-height: 0;
-  }
-  canvas { display: block; cursor: crosshair; touch-action: none; }
-
-  .controls {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 14px 24px 22px;
-    flex-wrap: wrap;
-  }
-  .controls .group {
-    display: flex;
-    gap: 6px;
-    align-items: center;
-  }
-  button.mode, button.act {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 11px;
-    font-weight: 500;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-    color: var(--ink);
-    background: transparent;
-    border: 1px solid #1d3a38;
-    border-radius: 100px;
-    padding: 9px 16px;
-    cursor: pointer;
-    transition: background .25s, color .25s, border-color .25s;
-  }
-  button.mode:hover, button.act:hover { border-color: #2f5654; }
-  button.mode.on {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: #031E1D;
-  }
-  .swatches { display: flex; gap: 6px; margin-left: 4px; }
-  .sw {
-    width: 22px; height: 22px; border-radius: 50%;
-    border: 2px solid transparent; cursor: pointer; padding: 0;
-    transition: transform .15s, border-color .15s;
-  }
-  .sw:hover { transform: scale(1.12); }
-  .sw.on { border-color: var(--ink); }
-  #ticker-input {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 11px; letter-spacing: 1px; text-transform: uppercase;
-    color: var(--ink); background: #06302e;
-    border: 1px solid #1d3a38; border-radius: 100px;
-    padding: 9px 14px; width: 230px; outline: none;
-  }
-  #ticker-input:focus { border-color: var(--accent); }
-  .hint { font-size: 11px; color: #5f7a78; letter-spacing: .5px; margin-left: auto; }
-  .hidden { display: none !important; }
-</style>
+  </script>
 </head>
 <body>
-  <header>
-    <h1>DotDev 2026 · Button Wall</h1>
-    <span class="meta">24&prime; × 4&prime; continuous · 2&Prime; on-center · 129 × 19 = 2,451 buttons</span>
+  <canvas id="scene"></canvas>
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="dot"></span>
+      <span class="title">DotDev Button Wall</span>
+      <span class="sub">24′×4′ · 3 panels</span>
+    </div>
+    <div class="meta">
+      <span id="spec-line"></span>
+      <span class="sep">·</span>
+      <span id="sync-state" class="sync">⚲ local</span>
+      <span class="sep">·</span>
+      <span class="hint-inline" id="hint-inline">click a button = cycle dotdev colour · drag = orbit · scroll = zoom</span>
+    </div>
   </header>
 
-  <div id="stage">
-    <canvas id="wall"></canvas>
+  <div id="dropzone" class="dropzone">
+    <div class="dropzone-inner"><div class="drop-text">▸ drop a video or image to play it on the wall</div></div>
   </div>
 
-  <div class="controls">
-    <div class="group">
-      <button class="mode on" data-mode="ambient">Ambient</button>
-      <button class="mode" data-mode="paint">Paint</button>
-      <button class="mode" data-mode="ticker">Ticker</button>
+  <!-- Bottom control panel — all sections laid out at once -->
+  <section id="panel" class="panel">
+    <div class="grip" id="grip" title="Collapse / expand"><span class="grip-bar"></span><span class="mono fps" id="fps"></span></div>
+    <div class="panel-body" id="panel-body">
+
+      <section class="section section-scenes" data-section="scenes">
+        <div class="section-label">Scenes</div>
+        <div class="scenes-layout">
+          <nav class="vtabs">
+            <button class="vtab active" data-base="wave" title="Wave"><svg viewBox="0 0 16 16"><path d="M1 8q1.75-4 3.5 0t3.5 0t3.5 0t3.5 0"/></svg><span class="lbl">Wave</span></button>
+            <button class="vtab" data-base="metaballs" title="Metaballs"><svg viewBox="0 0 16 16"><circle cx="6" cy="8" r="2.6"/><circle cx="10.2" cy="6.6" r="2"/><circle cx="9.6" cy="11" r="1.6"/></svg><span class="lbl">Metaballs</span></button>
+            <button class="vtab" data-base="ticker" title="Ticker"><svg viewBox="0 0 16 16"><path d="M2 5h10M2 8h6.5M2 11h10"/></svg><span class="lbl">Ticker</span></button>
+            <button class="vtab" data-base="media" title="Media"><svg viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="10" rx="1"/><path d="M7 6l3.5 2L7 10z" fill="currentColor" stroke="none"/></svg><span class="lbl">Media</span></button>
+            <button class="vtab" data-base="camera" title="Camera"><svg viewBox="0 0 16 16"><rect x="2" y="4.5" width="12" height="8.5" rx="1"/><circle cx="8" cy="8.7" r="2.3"/><path d="M5.5 4.5l1-1.6h3l1 1.6"/></svg><span class="lbl">Camera</span></button>
+            <button class="vtab" data-base="off" title="Off"><svg viewBox="0 0 16 16"><path d="M8 2v6"/><path d="M5 4.5a5 5 0 1 0 6 0"/></svg><span class="lbl">Off</span></button>
+          </nav>
+          <div id="settings-panel" class="scene-content">
+            <div class="spanel-sub" id="spanel-wave" hidden>
+              <div class="trow"><span class="mini">speed</span><input type="range" id="wave-speed" min="0" max="0.2" step="0.005" value="0.06"><span class="mini">scale</span><input type="range" id="wave-scale" min="0.4" max="4" step="0.1" value="1.6"></div>
+            </div>
+            <div class="spanel-sub" id="spanel-metaballs" hidden>
+              <div class="trow"><span class="mini">speed</span><input type="range" id="meta-speed" min="0.2" max="3" step="0.1" value="1"><span class="mini">blobs</span><input type="range" id="meta-count" min="6" max="32" step="1" value="20"><span class="mini">merge</span><input type="range" id="meta-merge" min="0" max="7" step="0.25" value="3.6"><button class="btn" id="meta-grid" title="Free roam / bounce (click to move along grid lines)"><svg viewBox="0 0 16 16"><path d="M2 6h12M2 10h12M6 2v12M10 2v12"/></svg><span class="lbl">Free</span></button></div>
+            </div>
+            <div class="spanel-sub" id="spanel-ticker" hidden>
+              <textarea id="ticker-text" rows="2" placeholder="one message per line">DOTDEV · BUILD THE FUTURE OF COMMERCE</textarea>
+              <div class="trow">
+                <select id="ticker-dir" title="Scroll direction"><option value="left" selected>← Left</option><option value="right">→ Right</option></select>
+                <select id="ticker-font" title="Font"><option value="Inter" selected>Inter</option><option value="IBM Plex Mono">Plex Mono</option></select>
+                <select id="ticker-weight" title="Weight"><option value="300">Light</option><option value="400">Regular</option><option value="500">Medium</option><option value="600">Semibold</option><option value="700" selected>Bold</option><option value="800">Heavy</option><option value="900">Black</option></select>
+                <select id="ticker-size" title="Size"><option value="0.7">S</option><option value="0.85" selected>M</option><option value="1">L</option></select>
+                <svg viewBox="0 0 16 16" class="ico-dim" title="Speed"><path d="M3 12a6 6 0 1 1 10 0"/><path d="M8 8l3-2"/></svg>
+                <input type="range" id="ticker-speed" min="3" max="60" step="1" value="18" title="Speed">
+                <span class="mini" id="ticker-speed-val">18</span>
+                <span class="ticker-swatches" id="ticker-swatches"></span>
+              </div>
+            </div>
+            <div class="spanel-sub" id="spanel-media" hidden>
+              <div class="trow">
+                <button class="btn" id="load-media" title="Load video / image"><svg viewBox="0 0 16 16"><path d="M8 10V2M5 5l3-3 3 3"/><path d="M3 10v3a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-3"/></svg><span class="lbl">Load</span></button>
+                <button class="btn icon-only" id="media-playpause" disabled title="Play / pause"><svg viewBox="0 0 16 16"><rect x="4.5" y="3" width="2.5" height="10" fill="currentColor" stroke="none"/><rect x="9" y="3" width="2.5" height="10" fill="currentColor" stroke="none"/></svg></button>
+                <select id="media-fit" title="How media maps onto the 6:1 wall"><option value="cover">cover</option><option value="contain">contain</option><option value="stretch">stretch</option></select>
+                <input type="file" id="file-input" accept="video/*,image/*" hidden>
+              </div>
+              <div class="gallery-list" id="gallery-grid"></div>
+            </div>
+            <div class="spanel-sub" id="spanel-camera" hidden>
+              <div class="trow">
+                <button class="btn" id="cam-toggle" title="Share your webcam as low-res colour data"><svg viewBox="0 0 16 16"><rect x="2" y="4.5" width="12" height="8.5" rx="1"/><circle cx="8" cy="8.7" r="2.3"/><path d="M5.5 4.5l1-1.6h3l1 1.6"/></svg><span class="lbl">Enable camera</span></button>
+                <span class="mini dim" id="cam-status">camera off</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" data-section="games">
+        <div class="section-label">Games <span class="section-note">overlay · click again to stop</span></div>
+        <div class="section-inner">
+        <div class="chiprow">
+          <button class="btn" data-game="life" title="Life — click the wall to seed cells"><svg viewBox="0 0 16 16"><rect x="2" y="2" width="4" height="4"/><rect x="9" y="2" width="4" height="4"/><rect x="2" y="9" width="4" height="4"/></svg><span class="lbl">Life</span></button>
+          <button class="btn" data-game="snake" title="Snake · 3 boards — click to drop food"><svg viewBox="0 0 16 16"><path d="M3 12h4a2 2 0 0 0 0-4H6a2 2 0 0 1 0-4h4"/><circle cx="12.5" cy="4" r="1" fill="currentColor" stroke="none"/></svg><span class="lbl">Snake</span></button>
+          <button class="btn" data-game="tetris" title="Tetris · 3 wells — click a panel to hard-drop"><svg viewBox="0 0 16 16"><rect x="3" y="2.5" width="3" height="3"/><rect x="6" y="2.5" width="3" height="3"/><rect x="9" y="2.5" width="3" height="3"/><rect x="6" y="5.5" width="3" height="3"/></svg><span class="lbl">Tetris</span></button>
+          <button class="btn" data-game="fireworks" title="Fireworks — click the wall to burst one there"><svg viewBox="0 0 16 16"><path d="M8 15V9"/><path d="M8 6V2M8 6l3-2M8 6L5 4M8 6l4 1.5M8 6l-4 1.5"/><circle cx="8" cy="6" r="0.8" fill="currentColor" stroke="none"/></svg><span class="lbl">Fireworks</span></button>
+          <button class="btn" data-game="breakout" title="Breakout · shared field — click to launch a ball"><svg viewBox="0 0 16 16"><rect x="2" y="2.5" width="3" height="2"/><rect x="6.5" y="2.5" width="3" height="2"/><rect x="11" y="2.5" width="3" height="2"/><rect x="4.2" y="5.5" width="3" height="2"/><rect x="8.8" y="5.5" width="3" height="2"/><circle cx="8" cy="12" r="1" fill="currentColor" stroke="none"/></svg><span class="lbl">Breakout</span></button>
+        </div>
+        </div>
+      </section>
+
+      <section class="section" data-section="display">
+        <div class="section-label">Display</div>
+        <div class="section-inner">
+        <div class="ctl-grid">
+          <div class="ctl-block"><span class="ctl-label">View</span><div class="chiprow">
+            <button class="btn" id="view-front" title="Front view"><svg viewBox="0 0 16 16"><rect x="3" y="3" width="10" height="10" rx="1"/></svg><span class="lbl">Front</span></button>
+            <button class="btn" id="view-angle" title="3/4 view"><svg viewBox="0 0 16 16"><path d="M8 2l5 3v6l-5 3-5-3V5z"/><path d="M3 5l5 3 5-3M8 8v6"/></svg><span class="lbl">3/4</span></button>
+            <button class="btn" id="toggle-wood" title="Plywood / black backing"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 2a6 6 0 0 0 0 12z" fill="currentColor" stroke="none"/></svg><span class="lbl">Backing</span></button>
+          </div></div>
+          <div class="ctl-block"><span class="ctl-label">Look</span><div class="sliders">
+            <svg viewBox="0 0 16 16" class="ico-dim" title="Brightness"><circle cx="8" cy="8" r="3"/><path d="M8 1v1.6M8 13.4V15M1 8h1.6M13.4 8H15M3.4 3.4l1.1 1.1M11.5 11.5l1.1 1.1M12.6 3.4l-1.1 1.1M4.5 11.5l-1.1 1.1"/></svg>
+            <input type="range" id="brightness" min="0.4" max="3.5" step="0.05" value="2.0" title="Brightness">
+            <svg viewBox="0 0 16 16" class="ico-dim" title="Bloom"><path d="M8 2l1.2 3.8L13 7l-3.8 1.2L8 12l-1.2-3.8L3 7l3.8-1.2z"/></svg>
+            <input type="range" id="bloom" min="0" max="1.6" step="0.05" value="0.85" title="Bloom">
+          </div></div>
+          <div class="ctl-block"><span class="ctl-label">Wall spec</span><div class="dims spec-readout" title="3 abutted 8&prime; panels behind one continuous 2&Prime; OC field">
+            <span class="specv">24&prime;&times;4&prime;</span>
+            <span class="specv">3 panels &middot; continuous grid</span>
+            <span class="specv">2&Prime; OC &middot; 11&Prime;/6&Prime; centre margin</span>
+            <span class="specv">134&times;19 = 2,546</span>
+            <span class="specv dim">2,560 supply &middot; 14 spare</span>
+          </div></div>
+          <div class="ctl-block"><span class="ctl-label">Wall</span><div class="chiprow">
+            <button class="btn" id="clear-clicks" title="Reset clicked buttons (everyone)"><svg viewBox="0 0 16 16"><path d="M13 8a5 5 0 1 1-1.5-3.6"/><path d="M13 2.5V6H9.5"/></svg><span class="lbl">Reset clicks</span></button>
+          </div></div>
+        </div>
+        </div>
+      </section>
+
+      <section class="section" data-section="output">
+        <div class="section-label">Output</div>
+        <div class="section-inner">
+        <div class="chiprow">
+          <button class="btn" id="open-preview" title="Open the raw LED output (PIXEL_FRAME) in a popup — drop media there to drive the wall"><svg viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="8" rx="1"/><path d="M6 13.5h4M8 11v2.5"/></svg><span class="lbl">Output preview</span></button>
+          <button class="btn" id="open-schematic" title="Vendor protocol — schematic &amp; assessment"><svg viewBox="0 0 16 16"><circle cx="4" cy="4" r="1.6"/><circle cx="12" cy="4" r="1.6"/><circle cx="8" cy="12" r="1.6"/><path d="M5.4 4.6 8 10.4M10.6 4.6 8 10.4M5.4 4h5.2"/></svg><span class="lbl">Protocol</span></button>
+        </div>
+        </div>
+      </section>
+
     </div>
+  </section>
 
-    <div class="group swatches" id="swatches"></div>
-    <input id="ticker-input" class="hidden" type="text" maxlength="48" value="DOTDEV 2026 · PRESS A BUTTON" />
-    <button class="act" id="clear">Clear</button>
-    <span class="hint">Move / drag across the wall to light it up</span>
+  <!-- Vendor protocol schematic + assessment -->
+  <div id="schematic" class="sch" hidden>
+    <div class="sch-panel">
+      <div class="sch-head">
+        <div class="sch-title">Button Wall · Developer Protocol <span class="sch-tag">vendor draft</span></div>
+        <button class="sch-close" id="sch-close" title="Close (Esc)">✕</button>
+      </div>
+      <div class="sch-body">
+        <svg class="sch-svg" viewBox="0 0 1000 360" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Protocol data-flow schematic">
+          <defs>
+            <marker id="ahR" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0 9 4.5 0 9z" fill="#8fd5f1"/></marker>
+            <marker id="ahL" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0 9 4.5 0 9z" fill="#9bf1b0"/></marker>
+          </defs>
+
+          <rect class="sch-box accent-cyan" x="40" y="70" width="240" height="140" rx="6"/>
+          <text class="sch-h c-cyan" x="160" y="108" text-anchor="middle">CLIENT</text>
+          <text class="sch-sub" x="160" y="132" text-anchor="middle">pixel producer</text>
+          <text class="sch-dim" x="160" y="156" text-anchor="middle">this prototype</text>
+          <text class="sch-dim" x="160" y="178" text-anchor="middle">one active producer</text>
+
+          <rect class="sch-box accent-green" x="720" y="70" width="240" height="140" rx="6"/>
+          <text class="sch-h c-green" x="840" y="108" text-anchor="middle">WALL</text>
+          <text class="sch-sub" x="840" y="132" text-anchor="middle"><tspan id="sch-geom">W×H</tspan> buttons</text>
+          <text class="sch-dim" x="840" y="156" text-anchor="middle">ws://&lt;host&gt;:8400</text>
+          <text class="sch-dim" x="840" y="178" text-anchor="middle">[host TBD] · no auth</text>
+
+          <line class="sch-arrow a-cyan" x1="280" y1="100" x2="716" y2="100" marker-end="url(#ahR)"/>
+          <text class="sch-lbl c-cyan" x="500" y="92" text-anchor="middle">PIXEL_FRAME · 0x10</text>
+          <text class="sch-dim" x="500" y="116" text-anchor="middle">RGBA8 · W·H·4 B · ≤30 Hz · last-write-wins</text>
+
+          <line class="sch-arrow a-green" x1="720" y1="150" x2="284" y2="150" marker-end="url(#ahL)"/>
+          <text class="sch-lbl c-green" x="500" y="142" text-anchor="middle">HELLO · 0x01</text>
+          <text class="sch-dim" x="500" y="166" text-anchor="middle">width,height u16 (BE) · once on connect</text>
+
+          <line class="sch-arrow a-green" x1="720" y1="200" x2="284" y2="200" marker-end="url(#ahL)"/>
+          <text class="sch-lbl c-green" x="500" y="192" text-anchor="middle">BUTTON_STATE · 0x02</text>
+          <text class="sch-dim" x="500" y="216" text-anchor="middle">bitmask ⌈W·H/8⌉ B · MSB-first · emit-on-change 100 Hz</text>
+
+          <text class="sch-sub" x="500" y="258" text-anchor="middle">WIRE FRAMING — every message, both directions</text>
+          <rect class="sch-cell" x="260" y="270" width="120" height="44" rx="3"/>
+          <text class="sch-dim" x="320" y="297" text-anchor="middle">type · 1 B</text>
+          <rect class="sch-cell" x="380" y="270" width="360" height="44" rx="3"/>
+          <text class="sch-dim" x="560" y="297" text-anchor="middle">payload · length by type · big-endian</text>
+          <text class="sch-dim" x="500" y="336" text-anchor="middle">one shared type-tag space → a raw capture is never ambiguous about direction</text>
+        </svg>
+
+        <div class="sch-cards">
+          <div class="sch-card">
+            <h4>Connection</h4>
+            <ul>
+              <li>Endpoint <code>ws://&lt;host&gt;:8400</code> <span class="tbd">[host TBD]</span></li>
+              <li><code>ws://</code> vs <code>wss://</code> and auth <span class="tbd">[TBD]</span> (likely none)</li>
+              <li>One active pixel producer; 2nd connection <span class="tbd">[TBD: reject | read-only]</span></li>
+              <li>Producer disconnect → wall goes black (no last frame held)</li>
+            </ul>
+          </div>
+          <div class="sch-card">
+            <h4>Geometry · read from HELLO</h4>
+            <ul>
+              <li>this build: <span id="sch-cols">–</span> × <span id="sch-rows">–</span> = <span id="sch-n">–</span> buttons</li>
+              <li>3 panels (8′ ea) · one continuous 134 × 19 field</li>
+              <li>2″ on-centre across seams · 11″ side / 6″ top-bottom centre margins</li>
+              <li>supply 2,560 → 14 spare</li>
+              <li>origin top-left · row-major · <code>i = y·W + x</code></li>
+            </ul>
+          </div>
+          <div class="sch-card">
+            <h4>Pixels · you → wall · 0x10</h4>
+            <ul>
+              <li>RGBA8, row-major from top-left</li>
+              <li>payload W·H·4 = <span id="sch-frame">–</span> (+1 B tag)</li>
+              <li>send ≤30 Hz <span class="tbd">[30/60 TBD]</span> · superseded, not queued</li>
+              <li>alpha accepted but ignored (flattened to RGB)</li>
+              <li>wrong-length frame dropped + logged; socket stays open</li>
+            </ul>
+          </div>
+          <div class="sch-card">
+            <h4>Buttons · wall → you · 0x02</h4>
+            <ul>
+              <li>full-state bitmask ⌈W·H/8⌉ = <span id="sch-mask">–</span></li>
+              <li>MSB-first: button i → byte <code>i&gt;&gt;3</code>, bit <code>7−(i&amp;7)</code></li>
+              <li>emit-on-change · scan 100 Hz <span class="tbd">[200 TBD]</span> · ≤~10 ms</li>
+              <li>true N-key rollover · firmware-debounced</li>
+              <li>snapshot also sent on connect</li>
+            </ul>
+          </div>
+          <div class="sch-card">
+            <h4>Colour &amp; open items</h4>
+            <ul>
+              <li>gamma: raw PWM vs corrected <span class="tbd">[TBD]</span> — raw fades bunch in low ~10%</li>
+              <li>global brightness / current clamp <span class="tbd">[TBD]</span> — 255,255,255 may render dim</li>
+              <li>open: host · ws/wss · auth · pixel rate · scan rate · 2nd-conn · gamma · clamp</li>
+            </ul>
+          </div>
+          <div class="sch-card assess">
+            <h4>River's assessment</h4>
+            <ul>
+              <li>This prototype <b>is</b> the pixel producer. Our LED grid is exactly the PIXEL_FRAME payload (RGBA8, row-major, top-left) — the <b>Output</b> window previews that frame 1:1.</li>
+              <li>This build models the real fabrication: a 24′ wall of <b>3 abutted 8′×4′ panels</b> behind one continuous <b>134×19 = 2,546</b> dome field on a 2″ grid — 14 of the 2,560 supply spare. Logically it's still a dense W×H grid; read W/H from <code>HELLO</code>, don't hardcode.</li>
+              <li>Button presses are the reverse channel (<code>BUTTON_STATE</code>). Our click-to-cycle stands in for it until the socket exists.</li>
+              <li>Before hardware: honour ≤30 Hz, expect wall→black on disconnect (no persistence), and treat gamma + brightness-clamp as unresolved — don't ship smooth fades assuming linear PWM. Only one producer can push pixels.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
-<script>
-const COLS = 129, ROWS = 19;
-const PALETTE = ['#F5572D','#FFBE0B','#3DDC97','#3A86FF','#FF5DA2','#9B5DE5','#00F5D4'];
+  <div id="loading" class="loading mono">loading three.js…</div>
 
-const cv = document.getElementById('wall');
-const ctx = cv.getContext('2d');
-
-let cell, rad, gap, originX, originY, dpr = 1;
-// per-button persistent painted color (hex) or null; and live "energy" 0..1
-const painted = new Array(COLS*ROWS).fill(null);
-const energy  = new Float32Array(COLS*ROWS);
-const energyColor = new Array(COLS*ROWS).fill(null);
-
-let mode = 'ambient';
-let brush = PALETTE[0];
-let pointer = { x: -999, y: -999, down: false };
-let t0 = performance.now();
-
-function layout(){
-  const stage = document.getElementById('stage');
-  const availW = stage.clientWidth;
-  const availH = stage.clientHeight;
-  // wall aspect = COLS:ROWS
-  let w = availW, h = w * ROWS / COLS;
-  if (h > availH) { h = availH; w = h * COLS / ROWS; }
-  cell = w / COLS;
-  rad = cell * 0.40;
-  gap = cell;
-  originX = (w - (COLS-1)*gap) / 2;
-  originY = (h - (ROWS-1)*gap) / 2;
-
-  dpr = Math.min(window.devicePixelRatio || 1, 2);
-  cv.style.width = w + 'px';
-  cv.style.height = h + 'px';
-  cv.width  = Math.round(w * dpr);
-  cv.height = Math.round(h * dpr);
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-}
-window.addEventListener('resize', layout);
-
-function bx(c){ return originX + c * gap; }
-function by(r){ return originY + r * gap; }
-
-function hexToRgb(h){
-  const n = parseInt(h.slice(1),16);
-  return [(n>>16)&255,(n>>8)&255,n&255];
-}
-function mix(a, b, t){
-  return [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t];
-}
-const BASE = hexToRgb('#0a2b29');   // unlit button face
-const palRgb = PALETTE.map(hexToRgb);
-
-// ---- ticker: render text to an offscreen grid and sample it ----
-const off = document.createElement('canvas');
-const offctx = off.getContext('2d');
-let tickerText = 'DOTDEV 2026 · PRESS A BUTTON';
-let tickerW = 0;
-function buildTicker(){
-  offctx.font = `bold ${ROWS}px 'IBM Plex Mono', monospace`;
-  const m = offctx.measureText(tickerText);
-  tickerW = Math.ceil(m.width) + COLS; // pad with a screen of blank for smooth wrap
-  off.width = tickerW;
-  off.height = ROWS;
-  offctx.clearRect(0,0,off.width,off.height);
-  offctx.font = `bold ${ROWS}px 'IBM Plex Mono', monospace`;
-  offctx.textBaseline = 'middle';
-  offctx.fillStyle = '#fff';
-  offctx.fillText(tickerText, COLS, ROWS/2 + 1);
-}
-function tickerLit(c, r, scroll){
-  const x = Math.floor(c + scroll) % tickerW;
-  const xx = (x + tickerW) % tickerW;
-  const px = offctx.getImageData(xx, r, 1, 1).data;
-  return px[3] > 100;
-}
-
-function draw(now){
-  const t = (now - t0) / 1000;
-  ctx.clearRect(0,0,cv.width,cv.height);
-
-  // ambient field
-  const scroll = -t * 26; // ticker speed (cols/sec)
-  for (let r=0; r<ROWS; r++){
-    for (let c=0; c<COLS; c++){
-      const i = r*COLS + c;
-      let rgb, lit = 0;
-
-      // base ambient wave (drifting color field)
-      const wave = 0.5 + 0.5*Math.sin(c*0.18 + t*1.1) * Math.cos(r*0.30 - t*0.7);
-      const hueShift = (Math.sin(c*0.05 + t*0.4) + 1) / 2;
-      const ambIdx = Math.floor(hueShift * palRgb.length) % palRgb.length;
-      let amb = mix(BASE, palRgb[ambIdx], 0.10 + 0.22*wave);
-
-      if (mode === 'ambient'){
-        rgb = amb;
-      } else if (mode === 'ticker'){
-        rgb = tickerLit(c, r, scroll) ? palRgb[0].slice() : mix(BASE, palRgb[3], 0.06);
-      } else { // paint
-        rgb = painted[i] ? hexToRgb(painted[i]) : BASE.slice();
-      }
-
-      // live energy from pointer / paint glow
-      if (energy[i] > 0.001){
-        const ec = energyColor[i] || palRgb[0];
-        rgb = mix(rgb, ec, Math.min(1, energy[i]));
-        // light-bloom: also nudge toward white at the peak
-        rgb = mix(rgb, [255,255,255], energy[i]*0.25);
-        energy[i] *= 0.90; // decay
-      }
-
-      const x = bx(c), y = by(r);
-      ctx.beginPath();
-      ctx.arc(x, y, rad, 0, Math.PI*2);
-      ctx.fillStyle = `rgb(${rgb[0]|0},${rgb[1]|0},${rgb[2]|0})`;
-      ctx.fill();
-    }
-  }
-
-  // pointer ripple — light buttons under/near the cursor
-  if (pointer.x > -500){
-    const cc = (pointer.x - originX) / gap;
-    const rr = (pointer.y - originY) / gap;
-    const reach = 2.6;
-    const c0 = Math.max(0, Math.floor(cc-reach)), c1 = Math.min(COLS-1, Math.ceil(cc+reach));
-    const r0 = Math.max(0, Math.floor(rr-reach)), r1 = Math.min(ROWS-1, Math.ceil(rr+reach));
-    for (let r=r0; r<=r1; r++){
-      for (let c=c0; c<=c1; c++){
-        const d = Math.hypot(c-cc, r-rr);
-        if (d <= reach){
-          const i = r*COLS + c;
-          const add = (1 - d/reach);
-          if (add > energy[i]){ energy[i] = Math.min(1, add); energyColor[i] = hexToRgb(brush); }
-          if (mode === 'paint' && pointer.down && d < 1.4){
-            painted[i] = brush;
-          }
-        }
-      }
-    }
-  }
-
-  requestAnimationFrame(draw);
-}
-
-// ---- pointer handling ----
-function setPointer(e){
-  const rect = cv.getBoundingClientRect();
-  const p = (e.touches && e.touches[0]) || e;
-  pointer.x = p.clientX - rect.left;
-  pointer.y = p.clientY - rect.top;
-}
-cv.addEventListener('pointermove', setPointer);
-cv.addEventListener('pointerdown', e => { pointer.down = true; setPointer(e); });
-window.addEventListener('pointerup', () => { pointer.down = false; });
-cv.addEventListener('pointerleave', () => { pointer.x = -999; pointer.y = -999; });
-
-// ---- controls ----
-const swWrap = document.getElementById('swatches');
-PALETTE.forEach((hex, idx) => {
-  const b = document.createElement('button');
-  b.className = 'sw' + (idx===0 ? ' on' : '');
-  b.style.background = hex;
-  b.title = hex;
-  b.addEventListener('click', () => {
-    brush = hex;
-    [...swWrap.children].forEach(s => s.classList.remove('on'));
-    b.classList.add('on');
-  });
-  swWrap.appendChild(b);
-});
-
-const tickerInput = document.getElementById('ticker-input');
-document.querySelectorAll('button.mode').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('button.mode').forEach(b => b.classList.remove('on'));
-    btn.classList.add('on');
-    mode = btn.dataset.mode;
-    tickerInput.classList.toggle('hidden', mode !== 'ticker');
-  });
-});
-tickerInput.addEventListener('input', () => {
-  tickerText = (tickerInput.value || ' ').toUpperCase();
-  buildTicker();
-});
-
-document.getElementById('clear').addEventListener('click', () => {
-  painted.fill(null);
-  energy.fill(0);
-});
-
-// ---- boot ----
-function start(){
-  layout();
-  buildTicker();
-  requestAnimationFrame(draw);
-}
-// wait for the mono font so ticker metrics are right
-if (document.fonts && document.fonts.ready){
-  document.fonts.ready.then(() => { buildTicker(); });
-}
-start();
-</script>
+  <script nonce="f01b3c9c346ca250c8f5d72decf1d541" type="module" src="/app.js"></script>
 </body>
 </html>
